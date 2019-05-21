@@ -102,6 +102,14 @@ def get_symbol(args):
         gt_one_hot = mx.sym.one_hot(gt_label, depth = config.num_classes, on_value = 1.0, off_value = 0.0)
         body = mx.sym.broadcast_mul(gt_one_hot, diff)
         fc7 = fc7+body
+  elif config.loss_name=='direct_regress':
+    is_softmax = False
+    _weight = mx.symbol.Variable("fc7_weight", shape=(config.num_classes, config.emb_size),
+        lr_mult=config.fc7_lr_mult, wd_mult=config.fc7_wd_mult, init=mx.init.Normal(0.01))
+    s = config.loss_s
+    _weight = mx.symbol.L2Normalization(_weight, mode='instance')
+    nembedding = mx.symbol.L2Normalization(embedding, mode='instance', name='fc1n') * s
+    fc7 = mx.sym.FullyConnected(data=nembedding, weight=_weight, no_bias=True, num_hidden=config.num_classes, name='fc7')
   elif config.loss_name.find('triplet')>=0:
     is_softmax = False
     nembedding = mx.symbol.L2Normalization(embedding, mode='instance', name='fc1n')
@@ -140,8 +148,14 @@ def get_symbol(args):
       ce_loss = mx.symbol.sum(body)/args.per_batch_size
       out_list.append(mx.symbol.BlockGrad(ce_loss))
   else:
-    out_list.append(mx.sym.BlockGrad(gt_label))
-    out_list.append(triplet_loss)
+    if config.loss_name=='direct_regress':
+      _label = mx.sym.one_hot(gt_label, depth = config.num_classes, on_value = -1.0, off_value = 1.0)
+      body = fc7 * _label
+      dr_loss = mx.symbol.sum(body)/args.per_batch_size
+      out_list.append(mx.symbol.BlockGrad(dr_loss))
+    else:
+      out_list.append(mx.sym.BlockGrad(gt_label))
+      out_list.append(triplet_loss)
   out = mx.symbol.Group(out_list)
   return out
 
