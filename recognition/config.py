@@ -152,6 +152,11 @@ loss.combined.loss_m1 = 1.0
 loss.combined.loss_m2 = 0.3
 loss.combined.loss_m3 = 0.2
 
+loss.diregress = edict()
+loss.diregress.loss_name = 'direct_regress'
+loss.diregress.loss_s = 64.0
+loss.diregress.smooth_ir = 0.0
+
 loss.triplet = edict()
 loss.triplet.loss_name = 'triplet'
 loss.triplet.images_per_identity = 5

@@ -151,6 +151,8 @@ def get_symbol(args):
       out_list.append(mx.symbol.BlockGrad(ce_loss))
   else:
     if config.loss_name=='direct_regress':
+      softmax = mx.symbol.SoftmaxOutput(data=fc7, label = gt_label, name='softmax', normalization='valid')
+      out_list.append(softmax)
       _label = mx.sym.one_hot(gt_label, depth = config.num_classes, on_value = -1.0, off_value = 1.0)
       body = fc7 * _label
       dr_loss = mx.symbol.sum(body)/args.per_batch_size
