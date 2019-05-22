@@ -17,6 +17,7 @@ import mxnet.optimizer as optimizer
 from config import config, default, generate_config
 from metric import *
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'common'))
+from logger import Logger
 import flops_counter
 sys.path.append(os.path.join(os.path.dirname(__file__), 'eval'))
 import verification
@@ -42,6 +43,7 @@ def parse_args():
   parser.add_argument('--dataset', default=default.dataset, help='dataset config')
   parser.add_argument('--network', default=default.network, help='network config')
   parser.add_argument('--loss', default=default.loss, help='loss config')
+  parser.add_argument('--id', default='', help='training id')
   args, rest = parser.parse_known_args()
   generate_config(args.network, args.dataset, args.loss)
   parser.add_argument('--models-root', default=default.models_root, help='root directory to save model.')
@@ -170,11 +172,11 @@ def train_net(args):
       print('use cpu')
     else:
       print('gpu num:', len(ctx))
-    prefix = os.path.join(args.models_root, '%s-%s-%s'%(args.network, args.loss, args.dataset), 'model')
+    prefix = os.path.join(args.models_root, '%s-%s-%s-%s'%(args.network, args.loss, args.dataset, args.id), 'model')
     prefix_dir = os.path.dirname(prefix)
     print('prefix', prefix)
-    if not os.path.exists(prefix_dir):
-      os.makedirs(prefix_dir)
+    assert os.path.exists(prefix_dir)==False, '%s already exists' % (prefix_dir)
+    sys.stdout = Logger(os.path.join(prefix_dir, 'log_train.txt'))
     args.ctx_num = len(ctx)
     args.batch_size = args.per_batch_size*args.ctx_num
     args.rescale_threshold = 0
