@@ -20,7 +20,9 @@ from mxnet import ndarray as nd
 from mxnet import io
 from mxnet import recordio
 
+import glob
 import os.path as osp
+from collections import defaultdict
 import ipdb
 
 logger = logging.getLogger()
@@ -31,44 +33,34 @@ class FaceImageIter(io.DataIter):
     def __init__(self, batch_size, data_shape,
                  path_imgrec = None,
                  shuffle=False, aug_list=None, mean = None,
-                 rand_mirror = False, cutoff = 0, color_jittering = 0,
-                 images_filter = 0,
+                 rand_mirror=False, cutoff=0, color_jittering = 0,
                  data_name='data', label_name='softmax_label', **kwargs):
         super(FaceImageIter, self).__init__()
-        assert path_imgrec
-        if path_imgrec:
-            logging.info('loading recordio %s...',
-                         path_imgrec)
-            path_imgidx = path_imgrec[0:-4]+".idx"
-            self.imgrec = recordio.MXIndexedRecordIO(path_imgidx, path_imgrec, 'r')  # pylint: disable=redefined-variable-type
-            s = self.imgrec.read_idx(0)
-            header, _ = recordio.unpack(s)
-            if header.flag>0:
-              print('header0 label', header.label)
-              self.header0 = (int(header.label[0]), int(header.label[1]))
-              #assert(header.flag==1)
-              #self.imgidx = range(1, int(header.label[0]))
-              self.imgidx = []
-              self.id2range = {}
-              self.seq_identity = range(int(header.label[0]), int(header.label[1]))
-              for identity in self.seq_identity:
-                s = self.imgrec.read_idx(identity)
-                header, _ = recordio.unpack(s)
-                a,b = int(header.label[0]), int(header.label[1])
-                count = b-a
-                if count<images_filter:
-                  continue
-                self.id2range[identity] = (a,b)
-                self.imgidx += range(a, b)
-              print('id2range', len(self.id2range))
-            else:
-              self.imgidx = list(self.imgrec.keys)
-            if shuffle:
-              self.seq = self.imgidx
-              self.oseq = self.imgidx
-              print(len(self.seq))
-            else:
-              self.seq = None
+
+        path_to_data  = path_imgrec
+        self.train_dir = path_to_data
+        self.train_list = osp.join(path_to_data, 'list_train.txt')
+
+        self._check_before_run()
+        train_set, num_train_pids, num_train_imgs = self._process_dir(self.train_dir, self.train_list)
+
+        if True:
+            print("=> {} loaded".format(path_to_data))
+            print("Dataset statistics:")
+            print("  ------------------------------")
+            print("  subset   | # ids | # images")
+            print("  ------------------------------")
+            print("  train    | {:5d} | {:8d}".format(num_train_pids, num_train_imgs))
+            print("  ------------------------------")
+
+        self.num_instances = 4
+        self.train_set = train_set
+        self.num_train_pids = num_train_pids
+        self.index_dic = defaultdict(list)
+        for index, (_, pid) in enumerate(self.train_set):
+            self.index_dic[pid].append(index)
+        self.pids = list(self.index_dic.keys())
+        self.num_identities = len(self.pids)
 
         self.mean = mean
         self.nd_mean = None
@@ -83,7 +75,6 @@ class FaceImageIter(io.DataIter):
         self.shuffle = shuffle
         self.image_size = '%d,%d'%(data_shape[1],data_shape[2])
         self.rand_mirror = rand_mirror
-        print('rand_mirror', rand_mirror)
         self.cutoff = cutoff
         self.color_jittering = color_jittering
         self.CJA = mx.image.ColorJitterAug(0.125, 0.125, 0.125)
@@ -93,60 +84,65 @@ class FaceImageIter(io.DataIter):
         self.nbatch = 0
         self.is_init = False
 
-    def cvt2Image(self, img_path):
-        for identity in self.seq_identity:
-          a,b = self.id2range[identity]
-          folder = osp.join(img_path, '%06d'%identity)
-          if not osp.exists(folder):
-            os.makedirs(folder)
-          for idx in range(a, b):
-            s = self.imgrec.read_idx(idx)
-            header, img = recordio.unpack(s)
-            label = header.label
-            if not isinstance(label, numbers.Number):
-              label = label[0]
-            imgx = self.imdecode(img)
-            imgx = cv2.cvtColor(imgx.asnumpy(), cv2.COLOR_RGB2BGR)
-            fname = osp.join(folder, '%05d.jpg'%idx)
-            cv2.imwrite(fname, imgx)
+    def _check_before_run(self):
+        """Check if all files are available before going deeper"""
+        if not osp.exists(self.train_dir):
+            raise RuntimeError("'{}' is not available".format(self.train_dir))
+        '''
+        if not osp.exists(self.gallery_dir):
+            raise RuntimeError("'{}' is not available".format(self.gallery_dir))
+        if not osp.exists(self.probe_dir):
+            raise RuntimeError("'{}' is not available".format(self.probe_dir))
+        '''
+
+    def _process_dir(self, dir_path, list_path):
+        with open(list_path, 'r') as txt:
+            lines = txt.readlines()
+        dataset = []
+        pid_container = set()
+        for img_idx, img_info in enumerate(lines):
+            img_path, pid = img_info.split(' ')
+            pid = int(pid) # no need to relabel
+            img_path = osp.join(dir_path, img_path)
+            dataset.append((img_path, pid))
+            pid_container.add(pid)
+        num_imgs = len(dataset)
+        num_pids = len(pid_container)
+        # check if pid starts from 0 and increments with 1
+        for idx, pid in enumerate(pid_container):
+            assert idx == pid, "See code comment for explanation "+list_path+' %d'%pid
+        return dataset, num_pids, num_imgs
 
     def reset(self):
         """Resets the iterator to the beginning of the data."""
         print('call reset()')
         self.cur = 0
-        if self.shuffle:
-          random.shuffle(self.seq)
-        if self.seq is None and self.imgrec is not None:
-            self.imgrec.reset()
+        #indices = torch.randperm(self.num_identities)
+        indices = np.random.permutation(self.num_identities)
+        self.seq = []
+        for i in indices:
+            pid = self.pids[i]
+            t = self.index_dic[pid]
+            replace = False if len(t) >= self.num_instances else True
+            t = np.random.choice(t, size=self.num_instances, replace=replace)
+            self.seq.extend(t)
 
     def num_samples(self):
-      return len(self.seq)
+      return len(self.train_set)
 
     def next_sample(self):
         """Helper function for reading in next sample."""
         #set total batch size, for example, 1800, and maximum size for each people, for example 45
-        if self.seq is not None:
-          while True:
+        while True:
             if self.cur >= len(self.seq):
                 raise StopIteration
             idx = self.seq[self.cur]
             self.cur += 1
-            if self.imgrec is not None:
-              s = self.imgrec.read_idx(idx)
-              header, img = recordio.unpack(s)
-              label = header.label
-              if not isinstance(label, numbers.Number):
-                label = label[0]
-              return label, img, None, None
-            else:
-              label, fname, bbox, landmark = self.imglist[idx]
-              return label, self.read_image(fname), bbox, landmark
-        else:
-            s = self.imgrec.read()
-            if s is None:
-                raise StopIteration
-            header, img = recordio.unpack(s)
-            return header.label, img, None, None
+            if self.train_set is not None:
+                img_path, label = self.train_set[idx]
+                img = self.read_image(img_path)
+                img = self.imdecode(img)
+                return label, img, None, None
 
     def brightness_aug(self, src, x):
       alpha = 1.0 + random.uniform(-x, x)
@@ -198,7 +194,6 @@ class FaceImageIter(io.DataIter):
       img = Image.open(BytesIO(buf))
       return nd.array(np.asarray(img, 'float32'))
 
-
     def next(self):
         if not self.is_init:
           self.reset()
@@ -214,8 +209,7 @@ class FaceImageIter(io.DataIter):
         i = 0
         try:
             while i < batch_size:
-                label, s, bbox, landmark = self.next_sample()
-                _data = self.imdecode(s)
+                label, _data, bbox, landmark = self.next_sample()
                 if _data.shape[0]!=self.data_shape[1]:
                   _data = mx.image.resize_short(_data, self.data_shape[1])
                 if self.rand_mirror:
@@ -231,10 +225,6 @@ class FaceImageIter(io.DataIter):
                   _data = _data.astype('float32', copy=False)
                   #print(_data.__class__)
                   _data = self.color_aug(_data, 0.125)
-                if self.nd_mean is not None:
-                  _data = _data.astype('float32', copy=False)
-                  _data -= self.nd_mean
-                  _data *= 0.0078125
                 if self.cutoff>0:
                   _rd = random.randint(0,1)
                   if _rd==1:
@@ -248,6 +238,10 @@ class FaceImageIter(io.DataIter):
                     endw = min(_data.shape[1], centerw+half)
                     #print(starth, endh, startw, endw, _data.shape)
                     _data[starth:endh, startw:endw, :] = 128
+                if self.nd_mean is not None:
+                  _data = _data.astype('float32', copy=False)
+                  _data -= self.nd_mean
+                  _data *= 0.0078125
                 data = [_data]
                 try:
                     self.check_valid_image(data)
@@ -294,7 +288,7 @@ class FaceImageIter(io.DataIter):
         ----------
         >>> dataIter.read_image('Face.jpg') # returns decoded raw bytes.
         """
-        with open(os.path.join(self.path_root, fname), 'rb') as fin:
+        with open(fname, 'rb') as fin:
             img = fin.read()
         return img
 
@@ -333,15 +327,14 @@ class FaceImageIterList(io.DataIter):
 if __name__=='__main__':
   from config import config, default, generate_config
 
-  generate_config('shuffse', 'retina', 'arcface')
-  data_dir = config.dataset_path
-  path_imgrec = os.path.join(data_dir, "train.rec")
+  generate_config('shuffse', 'faceid', 'arcface')
+  path_to_data = config.dataset_path
   data_shape = (config.image_shape[2], config.image_shape[0], config.image_shape[1])
 
   train_dataiter = FaceImageIter(
           batch_size           = 32,
           data_shape           = data_shape,
-          path_imgrec          = path_imgrec,
+          path_to_data         = path_to_data,
           shuffle              = True,
           rand_mirror          = config.data_rand_mirror,
           mean                 = None,
@@ -350,5 +343,5 @@ if __name__=='__main__':
           images_filter        = config.data_images_filter,
   )
 
-  #batchx = train_dataiter.next()
-  train_dataiter.cvt2Image('/data2/chai/ms1m-retinaface-t1')
+  batchx = train_dataiter.next()
+  ipdb.set_trace()

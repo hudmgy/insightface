@@ -103,6 +103,18 @@ network.mnas025.emb_size = 256
 network.mnas025.net_output = 'GDC'
 network.mnas025.net_multiplier = 0.25
 
+network.shuff = edict()
+network.shuff.net_name = 'shufflenetv2'
+network.shuff.emb_size = 256
+network.shuff.net_output = 'GDC'
+network.shuff.net_multiplier = 2.0
+
+network.shuffse = edict()
+network.shuffse.net_name = 'shufflenetv2'
+network.shuffse.emb_size = 256
+network.shuffse.net_output = 'GDC'
+network.shuffse.net_multiplier = 3.0
+
 # dataset settings
 dataset = edict()
 
@@ -119,6 +131,13 @@ dataset.retina.dataset_path = '../datasets/ms1m-retinaface-t1'
 dataset.retina.num_classes = 93431
 dataset.retina.image_shape = (112,112,3)
 dataset.retina.val_targets = ['lfw', 'cfp_fp', 'agedb_30']
+
+dataset.faceid = edict()
+dataset.faceid.dataset = 'faceid'
+dataset.faceid.dataset_path = '../datasets/FaceID'
+dataset.faceid.num_classes = 93431
+dataset.faceid.image_shape = (112,112,3)
+dataset.faceid.val_targets = []
 
 loss = edict()
 loss.softmax = edict()
@@ -189,12 +208,12 @@ default.frequent = 20
 default.verbose = 2000
 default.kvstore = 'device'
 
-default.end_epoch = 10000
+default.end_epoch = 100
 default.lr = 0.1
 default.wd = 0.0005
 default.mom = 0.9
 default.per_batch_size = 128
-default.ckpt = 3
+default.ckpt = 1
 default.lr_steps = '100000,160000,220000'
 default.models_root = './models'
 

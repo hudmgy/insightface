@@ -27,6 +27,7 @@ import fmobilefacenet
 import fmobilenet
 import fmnasnet
 import fdensenet
+import shufflenetv2
 
 
 logger = logging.getLogger()
@@ -194,7 +195,8 @@ def train_net(args):
     assert image_size[0]==image_size[1]
     print('image_size', image_size)
     print('num_classes', config.num_classes)
-    path_imgrec = os.path.join(data_dir, "train.rec")
+    #path_imgrec = os.path.join(data_dir, "train.rec")
+    path_imgrec = os.path.join(data_dir, "")
 
     print('Called with argument:', args, config)
     data_shape = (args.image_channel,image_size[0],image_size[1])
@@ -247,7 +249,8 @@ def train_net(args):
       _metric = LossValueMetric()
       eval_metrics = [mx.metric.create(_metric)]
     else:
-      from image_iter import FaceImageIter
+      #from image_iter import FaceImageIter
+      from data_iter import FaceImageIter
       train_dataiter = FaceImageIter(
           batch_size           = args.batch_size,
           data_shape           = data_shape,
