@@ -36,6 +36,7 @@ class FaceImageIter(io.DataIter):
                  data_name='data', label_name='softmax_label', **kwargs):
         super(FaceImageIter, self).__init__()
         assert path_imgrec
+        self.num_instances = 4
         if path_imgrec:
             logging.info('loading recordio %s...',
                          path_imgrec)
@@ -63,12 +64,6 @@ class FaceImageIter(io.DataIter):
               print('id2range', len(self.id2range))
             else:
               self.imgidx = list(self.imgrec.keys)
-            if shuffle:
-              self.seq = self.imgidx
-              self.oseq = self.imgidx
-              print(len(self.seq))
-            else:
-              self.seq = None
 
         self.mean = mean
         self.nd_mean = None
@@ -110,14 +105,29 @@ class FaceImageIter(io.DataIter):
             fname = osp.join(folder, '%05d.jpg'%idx)
             cv2.imwrite(fname, imgx)
 
-    def reset(self):
+    def reset_random(self):
         """Resets the iterator to the beginning of the data."""
         print('call reset()')
         self.cur = 0
+        self.seq = self.imgidx
         if self.shuffle:
           random.shuffle(self.seq)
         if self.seq is None and self.imgrec is not None:
             self.imgrec.reset()
+
+    def reset(self):
+        """Resets the iterator to the beginning of the data."""
+        print('call reset()')
+        self.cur = 0
+        self.seq = []
+        if self.shuffle:
+          random.shuffle(self.seq_identity)
+        for i in self.seq_identity:
+          a, b = self.id2range[i]
+          t = range(a, b)
+          replace = False if len(t) >= self.num_instances else True
+          t = np.random.choice(t, size=self.num_instances, replace=replace)
+          self.seq.extend(t)
 
     def num_samples(self):
       return len(self.seq)
@@ -198,6 +208,34 @@ class FaceImageIter(io.DataIter):
       img = Image.open(BytesIO(buf))
       return nd.array(np.asarray(img, 'float32'))
 
+    def augmentation(self, _data):
+      if self.rand_mirror:
+        _rd = random.randint(0,1)
+        if _rd==1:
+          _data = mx.ndarray.flip(data=_data, axis=1)
+      if self.color_jittering>0:
+        if self.color_jittering>1:
+          _rd = random.randint(0,1)
+          if _rd==1:
+            _data = self.compress_aug(_data)
+            #print('do color aug')
+            _data = _data.astype('float32', copy=False)
+            #print(_data.__class__)
+            _data = self.color_aug(_data, 0.125)
+      if self.cutoff>0:
+        _rd = random.randint(0,1)
+        if _rd==1:
+          #print('do cutoff aug', self.cutoff)
+          centerh = random.randint(0, _data.shape[0]-1)
+          centerw = random.randint(0, _data.shape[1]-1)
+          half = self.cutoff//2
+          starth = max(0, centerh-half)
+          endh = min(_data.shape[0], centerh+half)
+          startw = max(0, centerw-half)
+          endw = min(_data.shape[1], centerw+half)
+          #print(starth, endh, startw, endw, _data.shape)
+          _data[starth:endh, startw:endw, :] = 128
+      return _data
 
     def next(self):
         if not self.is_init:
@@ -218,45 +256,17 @@ class FaceImageIter(io.DataIter):
                 _data = self.imdecode(s)
                 if _data.shape[0]!=self.data_shape[1]:
                   _data = mx.image.resize_short(_data, self.data_shape[1])
-                if self.rand_mirror:
-                  _rd = random.randint(0,1)
-                  if _rd==1:
-                    _data = mx.ndarray.flip(data=_data, axis=1)
-                if self.color_jittering>0:
-                  if self.color_jittering>1:
-                    _rd = random.randint(0,1)
-                    if _rd==1:
-                      _data = self.compress_aug(_data)
-                  #print('do color aug')
-                  _data = _data.astype('float32', copy=False)
-                  #print(_data.__class__)
-                  _data = self.color_aug(_data, 0.125)
+                _data = self.augmentation(_data)
                 if self.nd_mean is not None:
                   _data = _data.astype('float32', copy=False)
                   _data -= self.nd_mean
                   _data *= 0.0078125
-                if self.cutoff>0:
-                  _rd = random.randint(0,1)
-                  if _rd==1:
-                    #print('do cutoff aug', self.cutoff)
-                    centerh = random.randint(0, _data.shape[0]-1)
-                    centerw = random.randint(0, _data.shape[1]-1)
-                    half = self.cutoff//2
-                    starth = max(0, centerh-half)
-                    endh = min(_data.shape[0], centerh+half)
-                    startw = max(0, centerw-half)
-                    endw = min(_data.shape[1], centerw+half)
-                    #print(starth, endh, startw, endw, _data.shape)
-                    _data[starth:endh, startw:endw, :] = 128
                 data = [_data]
                 try:
                     self.check_valid_image(data)
                 except RuntimeError as e:
                     logging.debug('Invalid image, skipping:  %s', str(e))
                     continue
-                #print('aa',data[0].shape)
-                #data = self.augmentation_transform(data)
-                #print('bb',data[0].shape)
                 for datum in data:
                     assert i < batch_size, 'Batch size must be multiples of augmenter output length'
                     #print(datum.shape)
@@ -297,12 +307,6 @@ class FaceImageIter(io.DataIter):
         with open(os.path.join(self.path_root, fname), 'rb') as fin:
             img = fin.read()
         return img
-
-    def augmentation_transform(self, data):
-        """Transforms input data with specified augmentation."""
-        for aug in self.auglist:
-            data = [ret for src in data for ret in aug(src)]
-        return data
 
     def postprocess_data(self, datum):
         """Final postprocessing step before image is loaded into the batch."""
@@ -350,5 +354,4 @@ if __name__=='__main__':
           images_filter        = config.data_images_filter,
   )
 
-  #batchx = train_dataiter.next()
-  train_dataiter.cvt2Image('/data2/chai/ms1m-retinaface-t1')
+  batchx = train_dataiter.next()

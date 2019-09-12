@@ -59,7 +59,7 @@ def shuffleUnit(residual, in_channels, out_channels, split):
 
 def shuffleUnitSE(residual, in_channels, out_channels, split):
     # for guideline 1
-    equal_channels = out_channels / 2
+    equal_channels = int(out_channels / 2)
     print('channels:', in_channels, equal_channels, out_channels)
 
     if split==True:

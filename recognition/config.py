@@ -130,12 +130,13 @@ dataset.retina.dataset = 'retina'
 dataset.retina.dataset_path = '../datasets/ms1m-retinaface-t1'
 dataset.retina.num_classes = 93431
 dataset.retina.image_shape = (112,112,3)
-dataset.retina.val_targets = ['lfw', 'cfp_fp', 'agedb_30']
+dataset.retina.val_targets = ['lfw']
 
 dataset.faceid = edict()
 dataset.faceid.dataset = 'faceid'
 dataset.faceid.dataset_path = '../datasets/FaceID'
-dataset.faceid.num_classes = 93431
+#dataset.faceid.num_classes = 93431
+dataset.faceid.num_classes = 10000
 dataset.faceid.image_shape = (112,112,3)
 dataset.faceid.val_targets = []
 
@@ -234,7 +235,7 @@ def generate_config(_network, _dataset, _loss):
     config.loss = _loss
     config.network = _network
     config.dataset = _dataset
-    config.num_workers = 1
+    config.num_workers = 8
     if 'DMLC_NUM_WORKER' in os.environ:
       config.num_workers = int(os.environ['DMLC_NUM_WORKER'])
 

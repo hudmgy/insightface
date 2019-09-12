@@ -117,7 +117,6 @@ class FaceImageIter(io.DataIter):
         """Resets the iterator to the beginning of the data."""
         print('call reset()')
         self.cur = 0
-        #indices = torch.randperm(self.num_identities)
         indices = np.random.permutation(self.num_identities)
         self.seq = []
         for i in indices:
