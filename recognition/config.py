@@ -7,7 +7,7 @@ config = edict()
 config.bn_mom = 0.9
 config.workspace = 256
 config.emb_size = 512
-config.ckpt_embedding = True
+config.ckpt_embedding = False
 config.net_se = 0
 config.net_act = 'prelu'
 config.net_unit = 3
@@ -135,8 +135,7 @@ dataset.retina.val_targets = ['lfw']
 dataset.faceid = edict()
 dataset.faceid.dataset = 'faceid'
 dataset.faceid.dataset_path = '../datasets/FaceID'
-#dataset.faceid.num_classes = 93431
-dataset.faceid.num_classes = 10000
+dataset.faceid.num_classes = 93431
 dataset.faceid.image_shape = (112,112,3)
 dataset.faceid.val_targets = []
 
@@ -214,7 +213,7 @@ default.lr = 0.1
 default.wd = 0.0005
 default.mom = 0.9
 default.per_batch_size = 128
-default.ckpt = 1
+default.ckpt = 2
 default.lr_steps = '100000,160000,220000'
 default.models_root = './models'
 

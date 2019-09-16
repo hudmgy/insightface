@@ -113,6 +113,16 @@ class FaceImageIter(io.DataIter):
             assert idx == pid, "See code comment for explanation "+list_path+' %d'%pid
         return dataset, num_pids, num_imgs
 
+    def reset_random(self):
+        """Resets the iterator to the beginning of the data."""
+        print('call reset()')
+        self.cur = 0
+        self.seq = self.imgidx
+        if self.shuffle:
+          random.shuffle(self.seq)
+        if self.seq is None and self.imgrec is not None:
+            self.imgrec.reset()
+            
     def reset(self):
         """Resets the iterator to the beginning of the data."""
         print('call reset()')
@@ -131,7 +141,6 @@ class FaceImageIter(io.DataIter):
 
     def next_sample(self):
         """Helper function for reading in next sample."""
-        #set total batch size, for example, 1800, and maximum size for each people, for example 45
         while True:
             if self.cur >= len(self.seq):
                 raise StopIteration
