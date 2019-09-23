@@ -2,15 +2,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import shufflenetv2
-import fdensenet
-import fmnasnet
-import fmobilenet
-import fmobilefacenet
-import fresnet
-import verification
-import flops_counter
-from logger import Logger
 import os
 import sys
 import math
@@ -28,6 +19,15 @@ from metric import *
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'common'))
 sys.path.append(os.path.join(os.path.dirname(__file__), 'eval'))
 sys.path.append(os.path.join(os.path.dirname(__file__), 'symbol'))
+import shufflenetv2
+import fdensenet
+import fmnasnet
+import fmobilenet
+import fmobilefacenet
+import fresnet
+import verification
+import flops_counter
+from logger import Logger
 
 
 logger = logging.getLogger()

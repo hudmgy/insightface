@@ -139,6 +139,20 @@ dataset.faceid.num_classes = 93431
 dataset.faceid.image_shape = (112,112,3)
 dataset.faceid.val_targets = []
 
+dataset.ms10k = edict()
+dataset.ms10k.dataset = 'ms10k'
+dataset.ms10k.dataset_path = '../datasets/ms10k'
+dataset.ms10k.num_classes = 10000
+dataset.ms10k.image_shape = (112,112,3)
+dataset.ms10k.val_targets = []
+
+dataset.ms10kp = edict()
+dataset.ms10kp.dataset = 'ms10kp'
+dataset.ms10kp.dataset_path = '../datasets/ms10kp'
+dataset.ms10kp.num_classes = 10001
+dataset.ms10kp.image_shape = (112,112,3)
+dataset.ms10kp.val_targets = []
+
 loss = edict()
 loss.softmax = edict()
 loss.softmax.loss_name = 'softmax'
@@ -214,7 +228,8 @@ default.wd = 0.0005
 default.mom = 0.9
 default.per_batch_size = 128
 default.ckpt = 2
-default.lr_steps = '100000,160000,220000'
+#default.lr_steps = '100000,160000,220000'
+default.lr_steps = '2000,16000,22000'
 default.models_root = './models'
 
 

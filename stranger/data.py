@@ -20,6 +20,7 @@ import mxnet as mx
 from mxnet import ndarray as nd
 from mxnet import io
 from mxnet import recordio
+import ipdb
 
 logger = logging.getLogger()
 
@@ -36,8 +37,8 @@ class FaceImageIter(io.DataIter):
         assert path_featu
         logging.info('loading recordio %s...', path_featu)
 
-        in_featu = np.load(osp.join(path_featu, 'in_featu.npy')
-        out_featu = np.load(osp.join(path_featu, 'out_featu.npy')
+        in_featu = np.load(osp.join(path_featu, 'in_featu.npy'))
+        out_featu = np.load(osp.join(path_featu, 'out_featu.npy'))
         in_featu = in_featu[:,:data_shape[1]]
         out_featu = out_featu[:,:data_shape[1]]
         print('data shape:', in_featu.shape, out_featu.shape)
@@ -51,8 +52,7 @@ class FaceImageIter(io.DataIter):
         self.batch_size = batch_size
         self.data_shape = data_shape
         self.shuffle = shuffle
-        self.image_size = '%d,%d'%(data_shape[1],data_shape[2])
-        self.provide_label = [(label_name, (batch_size,2))]
+        self.provide_label = [(label_name, (batch_size,))]
         #print(self.provide_label[0][1])
         self.cur = 0
         self.nbatch = 0
@@ -95,8 +95,8 @@ class FaceImageIter(io.DataIter):
                 label, featu = self.next_sample()
                 assert i < batch_size, 'Batch size must be multiples of augmenter output length'
                 #print(datum.shape)
-                batch_data[i][:] = featu
-                batch_label[i][:] = label
+                batch_data[i][:] = nd.array(featu)
+                batch_label[i] = label
                 i += 1
         except StopIteration:
             if i<batch_size:

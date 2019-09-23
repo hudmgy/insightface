@@ -105,9 +105,9 @@ class FaceImageIter(io.DataIter):
                 fname = osp.join(folder, '%05d.jpg' % idx)
                 cv2.imwrite(fname, imgx)
 
-    def reset_random(self):
+    def reset(self):
         """Resets the iterator to the beginning of the data."""
-        print('call reset()')
+        print('call random reset()')
         self.cur = 0
         self.seq = self.imgidx
         if self.shuffle:
@@ -115,9 +115,9 @@ class FaceImageIter(io.DataIter):
         if self.seq is None and self.imgrec is not None:
             self.imgrec.reset()
 
-    def reset(self):
+    def reset_kn(self):
         """Resets the iterator to the beginning of the data."""
-        print('call reset()')
+        print('call k-n reset()')
         self.cur = 0
         self.seq = []
         if self.shuffle:

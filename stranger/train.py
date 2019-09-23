@@ -3,9 +3,8 @@ from __future__ import division
 from __future__ import print_function
 
 import nn_model
-import fmobilenet
-import fresnet
 import os
+import os.path as osp
 import sys
 import math
 import random
@@ -18,6 +17,7 @@ import mxnet as mx
 from mxnet import ndarray as nd
 import argparse
 import mxnet.optimizer as optimizer
+import ipdb
 sys.path.append(os.path.join(os.path.dirname(__file__), 'common'))
 
 
@@ -39,8 +39,8 @@ class AccMetric(mx.metric.EvalMetric):
 
     def update(self, labels, preds):
         self.count += 1
-        label = labels[0].asnumpy()[:, 0:1]
-        pred_label = preds[-1].asnumpy()[:, 0:2]
+        label = labels[0].asnumpy()
+        pred_label = preds[0].asnumpy()
         pred_label = np.argmax(pred_label, axis=self.axis)
         pred_label = pred_label.astype('int32').flatten()
         label = label.astype('int32').flatten()
@@ -70,7 +70,7 @@ def parse_args():
     # general
     parser.add_argument('--data-dir', default='',
                         help='training set directory')
-    parser.add_argument('--prefix', default='../model/model',
+    parser.add_argument('--prefix', default='model/model',
                         help='directory to save model.')
     parser.add_argument('--pretrained', default='',
                         help='pretrained model to load')
@@ -82,13 +82,13 @@ def parse_args():
     parser.add_argument('--max-steps', type=int, default=0,
                         help='max training batches')
     parser.add_argument('--end-epoch', type=int,
-                        default=100000, help='training epoch size.')
+                        default=900000, help='training epoch size.')
     parser.add_argument('--network', default='n2', help='specify network')
-    parser.add_argument('--image-size', default='1,7',
+    parser.add_argument('--image-size', default='',
                         help='specify input image height and width')
     parser.add_argument('--lr', type=float, default=0.1,
                         help='start learning rate')
-    parser.add_argument('--lr-steps', type=str, default='',
+    parser.add_argument('--lr-steps', type=str, default='40000,80000,120000',
                         help='steps of lr changing')
     parser.add_argument('--wd', type=float, default=0.0005,
                         help='weight decay')
@@ -111,7 +111,7 @@ def get_symbol(args, arg_params, aux_params):
     # data_shape = (args.image_channel, args.image_h, args.image_w)
     # image_shape = ",".join([str(x) for x in data_shape])
 
-    fc1 = nn_model.get_symbol(num_classes=2, num_layers=0)
+    fc1 = nn_model.get_symbol(num_classes=2, num_layers=5)
     label = mx.symbol.Variable('softmax_label')
     softmax = mx.symbol.SoftmaxOutput(data=fc1, label=label, name='softmax', normalization='valid', use_ignore=True, ignore_label=9999)
     # outs = [softmax]
@@ -138,19 +138,18 @@ def train_net(args):
         os.makedirs(prefix_dir)
     end_epoch = args.end_epoch
     args.ctx_num = len(ctx)
-    args.num_layers = int(args.network[1:])
-    print('num_layers', args.num_layers)
+    #args.num_layers = int(args.network[1:])
+    #print('num_layers', args.num_layers)
     if args.per_batch_size == 0:
         args.per_batch_size = 128
     args.batch_size = args.per_batch_size*args.ctx_num
-    args.rescale_threshold = 0
-    args.image_channel = 1
+    #args.rescale_threshold = 0
+    #args.image_channel = 1
 
-    path_data_train = os.path.join(args.data_dir, "train")
-    path_data_val = os.path.join(args.data_dir, "val")
+    path_data = os.path.join(args.data_dir, "train")
 
     print('Called with argument:', args)
-    data_shape = (args.image_channel, 7)
+    #data_shape = (args.image_channel, 7)
     mean = None
 
     begin_epoch = 0
@@ -172,20 +171,9 @@ def train_net(args):
         context=ctx,
         symbol=sym,
     )
-    val_dataiter = None
 
-    train_dataiter = FaceImageIter(
-        batch_size=args.batch_size,
-        data_shape=data_shape,
-        path_imgrec=path_data_train,
-        shuffle=True,
-    )
-    val_dataiter = FaceImageIter(
-        batch_size=args.batch_size,
-        data_shape=data_shape,
-        path_imgrec=path_data_val,
-        shuffle=False,
-    )
+    train_dataiter = data_loader(path_data, batch_size=args.batch_size, shuffle=True)
+    val_dataiter = data_loader(path_data, batch_size=64, shuffle=False)
 
     metric = mx.metric.CompositeEvalMetric([AccMetric()])
     initializer = mx.init.Xavier(rnd_type='gaussian', factor_type="out", magnitude=2)
@@ -198,7 +186,7 @@ def train_net(args):
     lr_steps = [int(x) for x in args.lr_steps.split(',')]
 
     global_step = [0]
-
+    save_step = [0]
     def _batch_callback(param):
         _cb(param)
         global_step[0] += 1
@@ -210,12 +198,13 @@ def train_net(args):
                 break
         if mbatch % 1000 == 0:
             print('lr-batch-epoch:', opt.lr, param.nbatch, param.epoch)
-        if mbatch == lr_steps[-1]:
+        if (mbatch >= 0 and mbatch % args.verbose == 0) or mbatch == lr_steps[-1]:
+            save_step[0] += 1
+            msave = save_step[0]
             arg, aux = model.get_params()
             all_layers = model.symbol.get_internals()
             _sym = all_layers['fc1_output']
-            mx.model.save_checkpoint(args.prefix, 0, _sym, arg, aux)
-            sys.exit(0)
+            mx.model.save_checkpoint(args.prefix, msave, _sym, arg, aux)
 
     epoch_cb = None
     train_dataiter = mx.io.PrefetchingIter(train_dataiter)
@@ -242,6 +231,32 @@ def main():
     global args
     args = parse_args()
     train_net(args)
+
+
+def data_loader(path_featu, batch_size=256, featu_dim=20, shuffle=False):
+    in_featu = np.load(osp.join(path_featu, 'in_featu.npy'))
+    out_featu = np.load(osp.join(path_featu, 'out_featu.npy'))
+    in_featu = in_featu[:,:featu_dim]
+    out_featu = out_featu[:,:featu_dim]
+    print('data shape:', in_featu.shape, out_featu.shape)
+    featu = np.vstack((in_featu, out_featu))
+    label = [0]*in_featu.shape[0] + [1]*out_featu.shape[0]
+
+    training_num = int(len(label)*0.8)
+    random.seed(a=0)
+    rid = random.sample(range(len(label)), len(label))
+    if shuffle:
+        featu = featu[rid[:training_num]]
+        label = [label[r] for r in rid[:training_num]]
+        print('training:', featu.shape)
+    else:
+        featu = featu[rid[training_num:]]
+        label = [label[r] for r in rid[training_num:]]
+        print('testing:', featu.shape)
+
+    label = np.array(label)
+    train_iter = mx.io.NDArrayIter(featu, label, batch_size, shuffle=shuffle)
+    return train_iter
 
 
 if __name__ == '__main__':
