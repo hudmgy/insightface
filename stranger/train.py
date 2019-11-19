@@ -12,6 +12,7 @@ import logging
 import pickle
 import numpy as np
 import sklearn
+from sklearn.decomposition import PCA
 from data import FaceImageIter
 import mxnet as mx
 from mxnet import ndarray as nd
@@ -77,7 +78,7 @@ def parse_args():
     parser.add_argument('--ckpt', type=int, default=1,
                         help='checkpoint saving option. 0: discard saving. 1: save when necessary. 2: always save')
     parser.add_argument('--loss-type', type=int, default=4, help='loss type')
-    parser.add_argument('--verbose', type=int, default=2000,
+    parser.add_argument('--verbose', type=int, default=20000,
                         help='do verification testing and model saving every verbose batches')
     parser.add_argument('--max-steps', type=int, default=0,
                         help='max training batches')
@@ -111,7 +112,7 @@ def get_symbol(args, arg_params, aux_params):
     # data_shape = (args.image_channel, args.image_h, args.image_w)
     # image_shape = ",".join([str(x) for x in data_shape])
 
-    fc1 = nn_model.get_symbol(num_classes=2, num_layers=5)
+    fc1 = nn_model.get_symbol(num_classes=2, num_layers=4)
     label = mx.symbol.Variable('softmax_label')
     softmax = mx.symbol.SoftmaxOutput(data=fc1, label=label, name='softmax', normalization='valid', use_ignore=True, ignore_label=9999)
     # outs = [softmax]
@@ -204,6 +205,7 @@ def train_net(args):
             arg, aux = model.get_params()
             all_layers = model.symbol.get_internals()
             _sym = all_layers['fc1_output']
+            #_sym = all_layers['softmax_output']
             mx.model.save_checkpoint(args.prefix, msave, _sym, arg, aux)
 
     epoch_cb = None
@@ -233,16 +235,25 @@ def main():
     train_net(args)
 
 
-def data_loader(path_featu, batch_size=256, featu_dim=20, shuffle=False):
+def data_loader(path_featu, batch_size=256, featu_dim1=1, featu_dim2=None, shuffle=False):
     in_featu = np.load(osp.join(path_featu, 'in_featu.npy'))
     out_featu = np.load(osp.join(path_featu, 'out_featu.npy'))
-    in_featu = in_featu[:,:featu_dim]
-    out_featu = out_featu[:,:featu_dim]
     print('data shape:', in_featu.shape, out_featu.shape)
-    featu = np.vstack((in_featu, out_featu))
     label = [0]*in_featu.shape[0] + [1]*out_featu.shape[0]
 
-    training_num = int(len(label)*0.8)
+    in_featu1 = in_featu[:,:featu_dim1]
+    out_featu1 = out_featu[:,:featu_dim1]
+    featu = np.vstack((in_featu1, out_featu1))
+    if featu_dim2 is not None:
+        in_featu2 = in_featu[:,100:]
+        out_featu2 = out_featu[:,100:]
+        featu2 = np.vstack((in_featu2, out_featu2))
+        pca = PCA(n_components=featu_dim2)
+        new_featu2 = pca.fit_transform(featu2)
+        print(pca.explained_variance_ratio_)
+        featu = np.hstack((featu, new_featu2))
+
+    training_num = int(len(label)*0.9)
     random.seed(a=0)
     rid = random.sample(range(len(label)), len(label))
     if shuffle:

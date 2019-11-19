@@ -34,6 +34,8 @@ def get_symbol(num_classes, num_layers, **kwargs):
         filter_list=[20,20]
     elif num_layers==3:
         filter_list=[20,40,20]
+    elif num_layers==4:
+        filter_list=[40,80,80,40]
     elif num_layers==5:
         filter_list=[20,40,80,160,320]
     else:

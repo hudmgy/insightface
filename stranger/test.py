@@ -1,34 +1,67 @@
-import face_model
 import argparse
-import cv2
-import sys
+import os,sys
 import numpy as np
 import datetime
+from train import get_symbol, data_loader
+import mxnet as mx
+from mxnet import ndarray as nd
+import ipdb
+
+
+def softmax(x):
+    exp = np.exp(x)
+    partition = exp.sum(axis=1,keepdims=True)
+    return exp / partition
+
 
 parser = argparse.ArgumentParser(description='face model test')
 # general
-parser.add_argument('--image-size', default='112,112', help='')
-parser.add_argument('--image', default='Tom_Hanks_54745.png', help='')
-parser.add_argument('--model', default='model/model,0', help='path to load model.')
-parser.add_argument('--gpu', default=0, type=int, help='gpu id')
-parser.add_argument('--det', default=0, type=int, help='mtcnn option, 1 means using R+O, 0 means detect from begining')
+parser.add_argument('--model', default='model/20d/model,2', help='path to load model.')
+parser.add_argument('--data-dir', default='',
+                        help='training set directory')
 args = parser.parse_args()
 
-model = face_model.FaceModel(args)
-#img = cv2.imread('Tom_Hanks_54745.png')
-img = cv2.imread(args.image)
-img = model.get_input(img)
-#f1 = model.get_feature(img)
-#print(f1[0:10])
-for _ in range(5):
-  gender, age = model.get_ga(img)
-time_now = datetime.datetime.now()
-count = 200
-for _ in range(count):
-  gender, age = model.get_ga(img)
-time_now2 = datetime.datetime.now()
-diff = time_now2 - time_now
-print('time cost', diff.total_seconds()/count)
-print('gender is',gender)
-print('age is', age)
+ctx = []
+cvd = os.environ['CUDA_VISIBLE_DEVICES'].strip()
+if len(cvd) > 0:
+    for i in range(len(cvd.split(','))):
+        ctx.append(mx.gpu(i))
+if len(ctx) == 0:
+    ctx = [mx.cpu()]
+    print('use cpu')
+else:
+    print('gpu num:', len(ctx))
 
+
+vec = args.model.split(',')
+print('loading', vec)
+sym, arg_params, aux_params = mx.model.load_checkpoint(vec[0], int(vec[1]))
+all_layers = sym.get_internals()
+sym = all_layers['fc1'+'_output']
+model = mx.mod.Module(context=ctx, symbol=sym)
+model.bind(data_shapes=[('data', (1, 20))])
+model.set_params(arg_params, aux_params)
+
+path_data = os.path.join(args.data_dir, "train")
+test_loader = data_loader(path_data, batch_size=64, shuffle=False)
+acc_num = 0
+number = 0
+for dat in test_loader:
+    label = dat.label[0].asnumpy()
+    data = mx.io.DataBatch(data=dat.data)
+    model.forward(data, is_train=False)
+    ret = model.get_outputs()[0].asnumpy()
+    ret = softmax(ret)
+    pred = np.argmax(ret, 1)
+    for i in range(ret.shape[0]):
+        if ret[i,1] > 0.7:
+            pred[i] = 1
+            if pred[i]==label[i]:
+                acc_num += 1
+            number += 1
+        else:
+            pred[i] = 0
+    #acc_num += sum(pred==label)
+    #number += label.shape[0]
+
+print('%d / %d = %f'%(acc_num, number, 1.0*acc_num/number))
