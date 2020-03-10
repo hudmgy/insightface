@@ -13,7 +13,7 @@ scales = [512, 990]
 
 img_path = sys.argv[1]
 gpuid = int(sys.argv[2])
-drawing = False 
+drawing = True 
 #factor = 1.25
 factor = 1.60
 #norm_size = 112
@@ -31,6 +31,7 @@ for dirname,_,files in os.walk(img_path):
 for ind, fi in enumerate(img_list):
     crop_file = fi.replace('raw', 'crops')
     #crop_file = fi.replace('Data', 'crops')
+
     if osp.exists(crop_file):
         continue
     img = cv2.imread(fi)
@@ -52,7 +53,7 @@ for ind, fi in enumerate(img_list):
     print(faces.shape, landmarks.shape)
 
     if faces is not None:
-        print('find', faces.shape[0], 'faces')
+        print('found', faces.shape[0], 'faces')
         if drawing:
             for i in range(faces.shape[0]):
                 box = faces[i].astype(np.int)
@@ -65,7 +66,7 @@ for ind, fi in enumerate(img_list):
                     if l==0 or l==3:
                         color = (0,255,0)
                     cv2.circle(img, (landmark5[l][0], landmark5[l][1]), 1, color, 2)
-            filename = fi.replace('Data', 'Drawing')
+            filename = crop_file.replace('crops', 'Drawing')
             if not osp.exists(osp.dirname(filename)):
                 os.makedirs(osp.dirname(filename))
             cv2.imwrite(filename, img)

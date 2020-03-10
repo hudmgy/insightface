@@ -228,11 +228,11 @@ def train_net(args):
     path_imglist = None
     image_size = config.image_shape[0:2]
     assert len(image_size) == 2
-    assert image_size[0] == image_size[1]
+    #assert image_size[0] == image_size[1]
     print('image_size', image_size)
     print('num_classes', config.num_classes)
     path_imgrec = os.path.join(data_dir, "train.rec")
-    path_test_imgrec = os.path.join(data_dir, "test.rec")
+    #path_test_imgrec = os.path.join(data_dir, "test.rec")
 
     print('Called with argument:', args, config)
     data_shape = (args.image_channel, image_size[0], image_size[1])
@@ -301,12 +301,14 @@ def train_net(args):
             color_jittering=config.data_color,
             images_filter=config.data_images_filter,
         )
+        '''
         val_dataiter = FaceImageIter(
             batch_size=args.batch_size,
             data_shape=data_shape,
             path_imgrec=path_test_imgrec,
             mean=mean,
         )
+        '''
 
         metric1 = AccMetric()
         eval_metrics = [mx.metric.create(metric1)]
