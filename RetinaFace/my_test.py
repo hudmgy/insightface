@@ -13,9 +13,10 @@ scales = [512, 990]
 
 img_path = sys.argv[1]
 gpuid = int(sys.argv[2])
-drawing = True 
+drawing = False 
 #factor = 1.25
-factor = 1.60
+#factor = 1.60
+factor = 1.50
 #norm_size = 112
 norm_size = 144
 
