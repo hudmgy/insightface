@@ -35,18 +35,21 @@ class FaceImageIter(io.DataIter):
         data_shape,
         path_imgrec=None,
         shuffle=False,
+        balance=False,
         aug_list=None,
         rand_mirror=False,
         rand_crop=False,
         center_crop=False,
         cutoff=0,
         color_jittering=0,
+        buffer_en=False,
         data_name="data",
         label_name="softmax_label",
         **kwargs
     ):
         super(FaceImageIter, self).__init__()
 
+        self.buffer_en = buffer_en
         self.data_list = path_imgrec
         self._check_before_run()
         dataset, num_data_pids, num_data_imgs = self._process_dir(self.data_list)
@@ -81,6 +84,7 @@ class FaceImageIter(io.DataIter):
         self.batch_size = batch_size
         self.data_shape = data_shape
         self.shuffle = shuffle
+        self.balance = balance
         self.image_size = "%d,%d" % (data_shape[1], data_shape[2])
         self.rand_mirror = rand_mirror
         self.center_crop = center_crop
@@ -119,9 +123,13 @@ class FaceImageIter(io.DataIter):
         dataset = []
         pid_container = set()
         for img_idx, img_info in enumerate(lines):
-            img_path, pid = img_info.strip().split(" ")
+            img_path, pid = img_info.strip().split(',')
             pid = int(pid)  # no need to relabel
-            dataset.append((img_path, pid))
+            if self.buffer_en:
+                img = self.read_image(img_path)
+                dataset.append((img, pid))
+            else:
+                dataset.append((img_path, pid))
             pid_container.add(pid)
         num_imgs = len(dataset)
         num_pids = len(pid_container)
@@ -133,9 +141,12 @@ class FaceImageIter(io.DataIter):
         return dataset, num_pids, num_imgs
 
     def reset(self):
-        self.reset_balance_random()
+        if self.balance:
+            self.reset_balance()
+        else:
+            self.reset_all()
 
-    def reset_random(self):
+    def reset_all(self):
         """Resets the iterator to the beginning of the data."""
         print("call reset()")
         self.cur = 0
@@ -143,11 +154,13 @@ class FaceImageIter(io.DataIter):
         if self.shuffle:
             random.shuffle(self.seq)
 
-    def reset_balance_random(self):
+    def reset_balance(self):
         self.cur = 0
         ret = []
         for pid, t in self.index_dic.items():
             t = np.random.choice(t, size=self.min_num_per_id, replace=False)
+            #if len(t) > 2 * self.min_num_per_id:
+            #    t = np.random.choice(t, size=2*self.min_num_per_id, replace=False)
             ret.extend(t)
         if self.shuffle:
             random.shuffle(ret)
@@ -224,8 +237,11 @@ class FaceImageIter(io.DataIter):
             idx = self.seq[self.cur]
             self.cur += 1
             if self.dataset is not None:
-                img_path, label = self.dataset[idx]
-                img = self.read_image(img_path)
+                if self.buffer_en:
+                    img, label = self.dataset[idx]
+                else:
+                    img_path, label = self.dataset[idx]
+                    img = self.read_image(img_path)
                 img = self.imdecode(img)
                 return label, img
               
@@ -245,8 +261,8 @@ class FaceImageIter(io.DataIter):
         try:
             while i < batch_size:
                 label, _data = self.next_sample()
-                if _data.shape[0] != self.data_shape[1]:
-                    _data = mx.image.resize_short(_data, self.data_shape[1])
+                #if _data.shape[0] != self.data_shape[1]:
+                #    _data = mx.image.resize_short(_data, self.data_shape[1])
                 if self.color_jittering > 0:
                     _data = self.color_jitter_aug(_data)
                 if self.cutoff > 0:
@@ -254,9 +270,9 @@ class FaceImageIter(io.DataIter):
                 if self.rand_mirror:
                     _data = self.mirror_aug(_data)
                 if self.rand_crop:
-                    _data = mx.image.rand_crop(_data, (w, h))
+                    _data,_ = mx.image.random_crop(_data, (w, h))
                 if self.center_crop:
-                    _data = mx.image.center_crop(_data, (w, h))
+                    _data,_ = mx.image.center_crop(_data, (w, h))
                 data = [_data]
                 try:
                     self.check_valid_image(data)
@@ -343,21 +359,37 @@ if __name__ == "__main__":
     from config import config, default, generate_config
 
     generate_config("shuffse", "anti", "softmax")
-    path_to_data = config.dataset_path
-    path_imgrec = os.path.join(path_to_data, "train.lst")
     data_shape = (config.image_shape[2], config.image_shape[0], config.image_shape[1])
 
+    data_dir = config.dataset_path
+    image_size = config.image_shape[0:2]
+    assert len(image_size) == 2
+    assert image_size[0] == image_size[1]
+    print('image_size', image_size)
+    #path_imgrec = os.path.join(data_dir, "train.lst")
+    path_imgrec = os.path.join(data_dir, "test.lst")
+
+    # data loader
     train_dataiter = FaceImageIter(
         batch_size=32,
         data_shape=data_shape,
-        path_to_data=path_imgrec,
+        path_imgrec=path_imgrec,
         shuffle=True,
+        balance=True,
+        rand_crop=True,
+        buffer_en=True,
         rand_mirror=config.data_rand_mirror,
-        mean=None,
         cutoff=config.data_cutoff,
         color_jittering=config.data_color,
         images_filter=config.data_images_filter,
     )
+    '''
+    val_dataiter = FaceImageIter(
+        batch_size=args.test_batch_size,
+        data_shape=data_shape,
+        path_imgrec=path_test_imgrec,
+    )
+    '''
 
+    ipdb.set_trace()
     batchx = train_dataiter.next()
-

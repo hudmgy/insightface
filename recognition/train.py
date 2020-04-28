@@ -20,6 +20,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'common'))
 sys.path.append(os.path.join(os.path.dirname(__file__), 'eval'))
 sys.path.append(os.path.join(os.path.dirname(__file__), 'symbol'))
 import shufflenetv2
+import VarGFaceNet
 import fdensenet
 import fmnasnet
 import fmobilenet

@@ -171,4 +171,9 @@ def get_symbol():
     data = mx.sym.Activation(data=extra_conv, act_type='relu')
 
     fc1 = symbol_utils.get_fc1(data, num_classes, fc_type, input_channel=1024)
+
+    '''
+    data = mx.sym.Pooling(data, global_pool=True, pool_type='avg')
+    fc1 = mx.sym.Flatten(data, name='fc1')
+    '''
     return fc1

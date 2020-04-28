@@ -46,6 +46,14 @@ network.r50 = edict()
 network.r50.net_name = 'fresnet'
 network.r50.num_layers = 50
 
+network.r34 = edict()
+network.r34.net_name = 'fresnet'
+network.r34.num_layers = 34
+
+network.r18 = edict()
+network.r18.net_name = 'fresnet'
+network.r18.num_layers = 18
+
 network.r50v1 = edict()
 network.r50v1.net_name = 'fresnet'
 network.r50v1.num_layers = 50
@@ -115,6 +123,9 @@ network.shuffse.net_name = 'shufflenetv2'
 network.shuffse.emb_size = 256
 network.shuffse.net_output = 'GDC'
 network.shuffse.net_multiplier = 3.0
+
+network.varg = edict()
+network.varg.net_name = 'VarGFaceNet'
 
 # dataset settings
 dataset = edict()

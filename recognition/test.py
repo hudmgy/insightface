@@ -67,10 +67,11 @@ vec = args.model.split(',')
 print('loading', vec)
 sym, arg_params, aux_params = mx.model.load_checkpoint(vec[0], int(vec[1]))
 all_layers = sym.get_internals()
-sym = all_layers['fc7'+'_output']
+sym = all_layers['fc1'+'_output']
 model = mx.mod.Module(context=ctx, symbol=sym)
 model.bind(data_shapes=[('data', (1, 3, image_size[0], image_size[1]))])
 model.set_params(arg_params, aux_params)
+mx.model.save_checkpoint(vec[0], 0, sym, arg_params, aux_params) 
 
 
 # data loader
@@ -134,4 +135,3 @@ with open(os.path.join(args.data_dir, 'pred.csv'), 'w') as fp:
         fp.write('%s,%d,%d,%.3f\n'%(img_path, pid, predictions[idx], predictions_score[idx]))
 print('Acc(%d/%d) = %.4f\nTime = %.4f'%(all_corrects, all_test, acc, end-start))
 '''
-mx.model.save_checkpoint(vec[0], 0, sym, arg_params, aux_params) 

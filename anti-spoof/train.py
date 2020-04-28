@@ -192,6 +192,8 @@ def train_net(args):
         _, arg_params, aux_params = mx.model.load_checkpoint(
             args.pretrained, args.pretrained_epoch)
         sym = get_symbol(args)
+        #ipdb.set_trace()
+        #arg_params = dict({k:arg_params[k] for k in arg_params if 'fc' not in k})
 
     if config.count_flops:
         all_layers = sym.get_internals()
@@ -213,6 +215,9 @@ def train_net(args):
         data_shape=data_shape,
         path_imgrec=path_imgrec,
         shuffle=True,
+        balance=True,
+        rand_crop=True,
+        buffer_en=False,
         rand_mirror=config.data_rand_mirror,
         cutoff=config.data_cutoff,
         color_jittering=config.data_color,
@@ -222,10 +227,9 @@ def train_net(args):
         batch_size=args.test_batch_size,
         data_shape=data_shape,
         path_imgrec=path_test_imgrec,
+        center_crop=True,
     )
 
-    #ipdb.set_trace()
-    #xdb = train_dataiter.next()
 
     # metric
     metric1 = AccMetric()
@@ -242,8 +246,9 @@ def train_net(args):
         initializer = mx.init.Xavier(
             rnd_type='uniform', factor_type="in", magnitude=2)
     _rescale = 1.0/args.ctx_num
-    opt = optimizer.SGD(learning_rate=args.lr,
-                        momentum=args.mom, wd=args.wd, rescale_grad=_rescale)
+    #opt = optimizer.SGD(learning_rate=args.lr,
+    #                    momentum=args.mom, wd=args.wd, rescale_grad=_rescale)
+    opt = optimizer.Adam(learning_rate=args.lr)
     _cb = mx.callback.Speedometer(args.batch_size, args.frequent)
 
     global_step = [0]
@@ -274,12 +279,12 @@ def train_net(args):
     train_dataiter = mx.io.PrefetchingIter(train_dataiter)
     model.fit(train_dataiter,
               begin_epoch=begin_epoch,
-              num_epoch=300,
+              num_epoch=200,
               eval_data=val_dataiter,
               eval_metric=eval_metrics,
               kvstore=args.kvstore,
               optimizer=opt,
-              #optimizer_params   = optimizer_params,
+              #optimizer_params = optimizer_params,
               initializer=initializer,
               arg_params=arg_params,
               aux_params=aux_params,

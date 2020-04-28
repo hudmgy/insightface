@@ -18,7 +18,7 @@ config.net_multiplier = 1.0
 config.ce_loss = True
 config.fc7_lr_mult = 1.0
 config.fc7_wd_mult = 1.0
-config.fc7_no_bias = False
+config.fc7_no_bias = False 
 config.max_steps = 0
 config.data_rand_mirror = True
 config.data_cutoff = 20
@@ -48,6 +48,10 @@ network.r50v1 = edict()
 network.r50v1.net_name = 'fresnet'
 network.r50v1.num_layers = 50
 network.r50v1.net_unit = 1
+
+network.r18 = edict()
+network.r18.net_name = 'fresnet'
+network.r18.num_layers = 18
 
 network.d169 = edict()
 network.d169.net_name = 'fdensenet'
@@ -159,6 +163,13 @@ dataset.anti.num_classes = 2
 dataset.anti.image_shape = (112,112,3)
 dataset.anti.val_targets = []
 
+dataset.fqua = edict()
+dataset.fqua.dataset = 'fqua'
+dataset.fqua.dataset_path = '../datasets/face-qua'
+dataset.fqua.num_classes = 2
+dataset.fqua.image_shape = (112,112,3)
+dataset.fqua.val_targets = []
+
 loss = edict()
 loss.softmax = edict()
 loss.softmax.loss_name = 'softmax'
@@ -213,7 +224,7 @@ default.per_batch_size = 128
 default.test_batch_size = 110
 default.ckpt = 2
 #default.lr_steps = '100000,160000,220000'
-default.lr_steps = '2000,16000,22000'
+default.lr_steps = '10000,16000,22000'
 default.models_root = './models'
 
 
