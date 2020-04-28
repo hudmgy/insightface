@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 import mxnet as mx
 import numpy as np
+import mxnet.ndarray as nd
 import symbol_utils
 import sklearn
 import ipdb
