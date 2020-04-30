@@ -9,12 +9,31 @@ from retinaface import RetinaFace
 import ipdb
 
 
-StdFaceShape = np.array([
+shape112x96 = np.array([
     [30.2946, 51.6963],
     [65.5318, 51.5014],
     [48.0252, 71.7366],
     [33.5493, 92.3655],
-    [62.7299, 92.2041] ], dtype=np.float32 )
+    [62.7299, 92.2041] ], dtype=np.float32)
+size112x96 = (112, 96)
+
+
+shape112x112 = shape112x96
+shape112x112[:,0] += 8.0
+size112x112 = (112, 112)
+
+
+as_shape128x128 = np.array([
+    [40.3928, 40.2617],
+    [87.3757, 40.0019],
+    [64.0336, 66.9821],
+    [44.7324, 94.4873],
+    [83.6399, 94.2721] ], dtype=np.float32)
+as_size128x128 = (128, 128)
+
+
+as_shape112x112 = as_shape128x128 * 112 / 128
+as_size112x112 = (112, 112)
 
 
 def list_read(img_path):
@@ -44,6 +63,7 @@ def detect(detector, scales, img, thresh, flip=False):
 
 def padding_crop(img, faces, landmarks, factor, std_size=None):
     crop_imgs = []
+    h,w,_ = img.shape
     for i in range(faces.shape[0]):
         box = faces[i].astype(np.int)
         wh = box[2] - box[0] + 1
@@ -62,19 +82,10 @@ def padding_crop(img, faces, landmarks, factor, std_size=None):
     return crop_imgs
 
 
-def align_crop(img, std_shape, bbox=None, landmark=None, **kwargs):
+def face_align(img, std_shape, image_size, bbox=None, landmark=None):
     M = None
-    src_image_size = kwargs.get('image_size', '112, 112')
-    if len(str_image_size)>0:
-        image_size = [int(x) for x in str_image_size.split(',')]
-    if len(image_size)==1:
-        image_size = [image_size[0], image_size[0]]
-    assert len(image_size)==2
-
     if landmark is not None:
-        src = std_shape
-        if image_size[1]==112:
-            src[:,0] += 8.0
+        src = std_shape.copy()
         dst = landmark.astype(np.float32)
         tform = trans.SimilarityTransform()
         tform.estimate(dst, src)
@@ -101,6 +112,26 @@ def align_crop(img, std_shape, bbox=None, landmark=None, **kwargs):
     else: #do align using landmark
         warped = cv2.warpAffine(img, M, (image_size[1],image_size[0]), borderValue = 0.0)
         return warped
+
+
+def align_crop(img, faces, landmarks):
+    std_shape = as_shape112x112.copy()
+    std_size = list(as_size112x112)
+
+    margin_w, margin_h = 8, 8
+    std_shape[:,0] += margin_w
+    std_shape[:,1] += margin_h
+    std_size[0] += 2 * margin_h
+    std_size[1] += 2 * margin_w
+
+    crop_imgs = []
+    for i in range(faces.shape[0]):
+        landmark5 = landmarks[i].astype(np.int)
+        box = faces[i].astype(np.int)
+        crop = face_align(img, std_shape, std_size, bbox=box, landmark=landmark5)
+        crop_imgs.append(crop)
+    return crop_imgs
+
 
 
 def drawing(img, faces, landmarks):
@@ -143,18 +174,20 @@ if __name__=='__main__':
     img_list = list_read(img_path)
 
     for ind, fi in enumerate(img_list):
-        crop_file = fi.replace('raw', 'crops')
+        crop_file = fi.replace('raw', 'crop128x128')
         #crop_file = fi.replace('Data', 'crops')
         if osp.exists(crop_file): continue
         img = cv2.imread(fi)
         if img is None: continue
 
         faces, landmarks = detect(detector, scales, img, thresh)
-        crop_imgs = padding_crop(img, faces, landmarks, factor, std_size=std_size)
+        #crop_imgs = padding_crop(img, faces, landmarks, factor, std_size=std_size)
+        crop_imgs = align_crop(img, faces, landmarks)
         print('found', len(crop_imgs), 'faces')
         for i in range(len(crop_imgs)):
             if i > 0:
-                crop_fi = osp.splitext(crop_file)[0]+'_%02d.jpg'%i
+                #crop_fi = osp.splitext(crop_file)[0]+'_%02d.jpg'%i
+                pass
             else:
                 crop_fi = crop_file
             save_image(crop_fi, crop_imgs[i])
