@@ -2,7 +2,7 @@ import os
 import os.path as osp
 
 
-prefix = '/data/chaizh/anti-spoof-0430/'
+prefix = '/data1/chai/anti-spoof-0430/'
 lst_set = ['train.csv', 'test.csv']
 
 

@@ -29,6 +29,7 @@ import verification
 from data_iter import FaceImageIter
 import flops_counter
 from logger import Logger
+import shutil as sh
 import ipdb
 
 
@@ -162,6 +163,10 @@ def train_net(args):
     prefix_dir = os.path.dirname(prefix)
     assert os.path.exists(prefix_dir)==False, '%s already exists' % (prefix_dir)
     sys.stdout = Logger(os.path.join(prefix_dir, 'log_train.txt'))
+    sh.copy('config.py', os.path.join(prefix_dir, 'config.px'))
+    sh.copy('train.py', os.path.join(prefix_dir, 'train.px'))
+    sh.copy('data_iter.py', os.path.join(prefix_dir, 'data_iter.px'))
+
     args.ctx_num = len(ctx)
     args.batch_size = args.per_batch_size*args.ctx_num
     args.rescale_threshold = 0
@@ -192,7 +197,6 @@ def train_net(args):
         _, arg_params, aux_params = mx.model.load_checkpoint(
             args.pretrained, args.pretrained_epoch)
         sym = get_symbol(args)
-        #ipdb.set_trace()
         #arg_params = dict({k:arg_params[k] for k in arg_params if 'fc' not in k})
 
     if config.count_flops:

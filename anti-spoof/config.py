@@ -72,7 +72,7 @@ network.y1.net_output = 'GDC'
 
 network.y2 = edict()
 network.y2.net_name = 'fmobilefacenet'
-network.y2.emb_size = 256
+network.y2.emb_size = 512 
 network.y2.net_output = 'GDC'
 network.y2.net_blocks = [2,8,16,4]
 
@@ -160,7 +160,8 @@ dataset.anti = edict()
 dataset.anti.dataset = 'anti'
 dataset.anti.dataset_path = '../datasets/anti-spoof'
 dataset.anti.num_classes = 2
-dataset.anti.image_shape = (112,112,3)
+#dataset.anti.image_shape = (112,112,3)
+dataset.anti.image_shape = (32,32,3)
 dataset.anti.val_targets = []
 
 dataset.fqua = edict()

@@ -46,7 +46,8 @@ parser.add_argument('--data-dir', default='', help='training set directory')
 parser.add_argument('--test-batch-size', type=int, default=1, help='batch size in each context')
 args = parser.parse_args()
 
-image_size = [112, 112]
+#image_size = [112, 112]
+image_size = [32, 32]
 data_shape = (3, image_size[0], image_size[1])
 
 
