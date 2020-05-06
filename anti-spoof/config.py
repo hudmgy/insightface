@@ -73,7 +73,7 @@ network.y1.net_output = 'GDC'
 network.y2 = edict()
 network.y2.net_name = 'fmobilefacenet'
 network.y2.emb_size = 512 
-network.y2.net_output = 'GDC'
+network.y2.net_output = 'AGAP'
 network.y2.net_blocks = [2,8,16,4]
 
 network.m1 = edict()
