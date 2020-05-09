@@ -21,8 +21,9 @@ config.fc7_wd_mult = 1.0
 config.fc7_no_bias = False 
 config.max_steps = 0
 config.data_rand_mirror = True
-config.data_cutoff = 20
-config.data_color = 2
+config.data_cutoff = 0
+config.fetch_size = [32, 112]
+config.data_color = 0
 config.data_images_filter = 0
 config.count_flops = True
 config.memonger = False #not work now
@@ -213,7 +214,7 @@ default.pretrained_epoch = 1
 # default dataset
 default.dataset = 'emore'
 default.loss = 'arcface'
-default.frequent = 20
+default.frequent = 100
 default.verbose = 500
 default.kvstore = 'device'
 

@@ -19,6 +19,7 @@ import mxnet as mx
 from mxnet import ndarray as nd
 from mxnet import io
 from mxnet import recordio
+import imgaug
 
 import glob
 import os.path as osp
@@ -40,7 +41,10 @@ class FaceImageIter(io.DataIter):
         rand_mirror=False,
         rand_crop=False,
         center_crop=False,
+        rand_flip_crop=False,
+        specified_crop=None,
         cutoff=0,
+        fetch_size=None,
         color_jittering=0,
         buffer_en=False,
         data_name="data",
@@ -93,7 +97,12 @@ class FaceImageIter(io.DataIter):
         if center_crop:
             assert rand_crop==False, 'random crop and center crop can not work simulately.'
         self.rand_crop = rand_crop
+        self.rand_flip_crop = rand_flip_crop
+        self.specified_crop = specified_crop
         self.cutoff = cutoff
+        if fetch_size is not None:
+            self.min_pat = fetch_size[0]
+            self.max_pat = fetch_size[1]
         self.color_jittering = color_jittering
         self.CJA = mx.image.ColorJitterAug(0.125, 0.125, 0.125)
         self.HJA = mx.image.HueJitterAug(0.1)
@@ -200,7 +209,8 @@ class FaceImageIter(io.DataIter):
     def compress_aug(self, img):
         buf = BytesIO()
         img = Image.fromarray(img.asnumpy(), "RGB")
-        q = random.randint(2, 20)
+        #q = random.randint(2, 20)
+        q = random.randint(20, 90)
         img.save(buf, format="JPEG", quality=q)
         buf = buf.getvalue()
         img = Image.open(BytesIO(buf))
@@ -219,6 +229,72 @@ class FaceImageIter(io.DataIter):
             # print(starth, endh, startw, endw, _data.shape)
             img[starth:endh, startw:endw, :] = 128
         return img
+      
+    def fetch_patch(self, img, min_size, max_size):
+        h,w,_ = img.shape
+        min_size = min(min(w, h), min_size)
+        max_size = max(max(w, h), max_size)
+        size = random.randint(int(min_size), int(max_size))
+        if size < min_size or size > max_size:
+            return img
+
+        half = size // 2
+        centerh = random.randint(half,  h - half)
+        centerw = random.randint(half, w - half)
+        starth = centerh - half
+        endh = centerh + half
+        startw = centerw - half
+        endw = centerw + half
+        patch = img.copy()
+        patch[:,:,:] = 128
+        patch[starth:endh, startw:endw, :] = img[starth:endh, startw:endw, :]
+        return patch
+
+    def random_resize(self, img, probability = 0.5,  minRatio = 0.3):
+        if random.uniform(0, 1) > probability:
+            return img
+
+        ratio = random.uniform(minRatio, 1.0)
+        h = img.shape[0]
+        w = img.shape[1]
+        new_h = int(h*ratio)
+        new_w = int(w*ratio)
+
+        img = cv2.resize(img, (new_w,new_h))
+        img = cv2.resize(img, (w, h))
+        return img
+
+    def random_cropping(self, img, target_shape, is_random = True):
+        target_w, target_h = target_shape
+        height, width, _ = img.shape
+
+        if is_random:
+            start_x = random.randint(0, width - target_w)
+            start_y = random.randint(0, height - target_h)
+        else:
+            start_x = ( width - target_w ) // 2
+            start_y = ( height - target_h ) // 2
+        zeros = img[start_y:start_y+target_h,start_x:start_x+target_w,:]
+        return zeros
+
+    def random_flip_crop(self, img, target_shape):
+        augment_img = iaa.Sequential([
+            iaa.Fliplr(0.5),
+            iaa.Flipud(0.5),
+            iaa.Affine(rotate=(-30, 30)),
+        ], random_order=True)
+
+        image = augment_img.augment_image(image)
+        image = random_resize(image)
+        image = random_cropping(image, target_shape, is_random=True)
+        return image
+
+    def specified_crop(self, img, target_shape, coords):
+        start_x = coords[0]
+        start_y = coords[1]
+        target_w, target_h = target_shape
+        image = img[start_y:start_y+target_h,start_x:start_x+target_w,:]
+        return image
       
     def mirror_aug(self, img):
         _rd = random.randint(0, 1)
@@ -271,8 +347,15 @@ class FaceImageIter(io.DataIter):
                     _data = self.mirror_aug(_data)
                 if self.rand_crop:
                     _data,_ = mx.image.random_crop(_data, (w, h))
+                if self.rand_flip_crop:
+                    _data = self.random_flip_crop(_data, (w, h))
+                if self.specified_crop is not None:
+                    _data = self.specified_crop(_data, (w, h), self.specified_crop)
                 if self.center_crop:
                     _data,_ = mx.image.center_crop(_data, (w, h))
+                if hasattr(self, 'min_pat') and hasattr(self, 'max_pat'):
+                    _data = self.fetch_patch(_data, self.min_pat, self.max_pat)
+                self.save_image(_data)
                 data = [_data]
                 try:
                     self.check_valid_image(data)
@@ -322,6 +405,14 @@ class FaceImageIter(io.DataIter):
             img = fin.read()
         return img
 
+    def save_image(self, img):
+        import cv2
+        fname = 'ximgx/' + str(self.cur) + '.jpg'
+        ximg = img.copy()
+        img[:,:,0] = ximg[:,:,2]
+        img[:,:,2] = ximg[:,:,0]
+        cv2.imwrite(fname, img.asnumpy())
+
     def augmentation_transform(self, data):
         """Transforms input data with specified augmentation."""
         for aug in self.auglist:
@@ -358,8 +449,9 @@ class FaceImageIterList(io.DataIter):
 if __name__ == "__main__":
     from config import config, default, generate_config
 
-    generate_config("shuffse", "anti", "softmax")
+    generate_config("y2", "anti", "softmax")
     data_shape = (config.image_shape[2], config.image_shape[0], config.image_shape[1])
+    data_shape = (3, 112, 112)
 
     data_dir = config.dataset_path
     image_size = config.image_shape[0:2]
@@ -380,6 +472,7 @@ if __name__ == "__main__":
         buffer_en=True,
         rand_mirror=config.data_rand_mirror,
         cutoff=config.data_cutoff,
+        fetch_size=[32, 112],
         color_jittering=config.data_color,
         images_filter=config.data_images_filter,
     )
@@ -391,5 +484,6 @@ if __name__ == "__main__":
     )
     '''
 
-    ipdb.set_trace()
-    batchx = train_dataiter.next()
+    while True:
+        ipdb.set_trace()
+        batchx = train_dataiter.next()

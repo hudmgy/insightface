@@ -161,8 +161,9 @@ def train_net(args):
     prefix = os.path.join(args.models_root, '%s-%s-%s-%s' %
                           (args.network, args.loss, args.dataset, args.id), 'model')
     prefix_dir = os.path.dirname(prefix)
-    #assert os.path.exists(prefix_dir)==False, '%s already exists' % (prefix_dir)
+    assert os.path.exists(prefix_dir)==False, '%s already exists' % (prefix_dir)
     sys.stdout = Logger(os.path.join(prefix_dir, 'log_train.txt'))
+    logging.basicConfig(filename = os.path.join(prefix_dir, 'log_train_info.txt'), level = logging.INFO) 
     sh.copy('config.py', os.path.join(prefix_dir, 'config.px'))
     sh.copy('train.py', os.path.join(prefix_dir, 'train.px'))
     sh.copy('data_iter.py', os.path.join(prefix_dir, 'data_iter.px'))
@@ -221,9 +222,10 @@ def train_net(args):
         shuffle=True,
         balance=True,
         rand_crop=True,
-        buffer_en=True,
+        buffer_en=False,
         rand_mirror=config.data_rand_mirror,
         cutoff=config.data_cutoff,
+        fetch_size=config.fetch_size,
         color_jittering=config.data_color,
         images_filter=config.data_images_filter,
     )
@@ -231,8 +233,7 @@ def train_net(args):
         batch_size=args.test_batch_size,
         data_shape=data_shape,
         path_imgrec=path_test_imgrec,
-        rand_crop=True,
-        #center_crop=True,
+        center_crop=True,
     )
 
 
