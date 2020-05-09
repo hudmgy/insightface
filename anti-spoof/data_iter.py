@@ -19,7 +19,7 @@ import mxnet as mx
 from mxnet import ndarray as nd
 from mxnet import io
 from mxnet import recordio
-import imgaug
+from imgaug import augmenters as iaa
 
 import glob
 import os.path as osp
@@ -284,10 +284,11 @@ class FaceImageIter(io.DataIter):
             iaa.Affine(rotate=(-30, 30)),
         ], random_order=True)
 
-        image = augment_img.augment_image(image)
-        image = random_resize(image)
-        image = random_cropping(image, target_shape, is_random=True)
-        return image
+        img,_ = mx.image.center_crop(img, (112, 112))
+        image = augment_img.augment_image(img.asnumpy())
+        image = self.random_resize(image)
+        image = self.random_cropping(image, target_shape, is_random=True)
+        return mx.nd.array(image)
 
     def specified_crop(self, img, target_shape, coords):
         start_x = coords[0]
@@ -451,7 +452,8 @@ if __name__ == "__main__":
 
     generate_config("y2", "anti", "softmax")
     data_shape = (config.image_shape[2], config.image_shape[0], config.image_shape[1])
-    data_shape = (3, 112, 112)
+    #data_shape = (3, 112, 112)
+    data_shape = (3, 48, 48)
 
     data_dir = config.dataset_path
     image_size = config.image_shape[0:2]
@@ -468,11 +470,11 @@ if __name__ == "__main__":
         path_imgrec=path_imgrec,
         shuffle=True,
         balance=True,
-        rand_crop=True,
+        rand_flip_crop=True,
         buffer_en=True,
         rand_mirror=config.data_rand_mirror,
         cutoff=config.data_cutoff,
-        fetch_size=[32, 112],
+        #fetch_size=[32, 112],
         color_jittering=config.data_color,
         images_filter=config.data_images_filter,
     )

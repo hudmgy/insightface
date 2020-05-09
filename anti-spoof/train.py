@@ -221,7 +221,7 @@ def train_net(args):
         path_imgrec=path_imgrec,
         shuffle=True,
         balance=True,
-        rand_crop=True,
+        rand_flip_crop=True,
         buffer_en=False,
         rand_mirror=config.data_rand_mirror,
         cutoff=config.data_cutoff,
