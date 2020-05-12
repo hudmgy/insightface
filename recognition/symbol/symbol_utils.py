@@ -49,6 +49,9 @@ def get_fc1(last_conv, num_classes, fc_type, input_channel=512):
     flat = mx.sym.Flatten(data=pool1)
     fc1 = mx.sym.FullyConnected(data=flat, num_hidden=num_classes, name='pre_fc1')
     fc1 = mx.sym.BatchNorm(data=fc1, fix_gamma=True, eps=2e-5, momentum=bn_mom, name='fc1')
+  elif fc_type=='AGAP':
+    pool1 = mx.sym.Pooling(data=body, global_pool=True, pool_type='avg', name='pool1')
+    fc1 = mx.sym.Flatten(data=pool1, name='fc1')
   elif fc_type=='GNAP': #mobilefacenet++
     filters_in = 512 # param in mobilefacenet
     if num_classes>filters_in:

@@ -356,7 +356,6 @@ class FaceImageIter(io.DataIter):
                     _data,_ = mx.image.center_crop(_data, (w, h))
                 if hasattr(self, 'min_pat') and hasattr(self, 'max_pat'):
                     _data = self.fetch_patch(_data, self.min_pat, self.max_pat)
-                self.save_image(_data)
                 data = [_data]
                 try:
                     self.check_valid_image(data)
