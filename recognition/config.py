@@ -165,6 +165,13 @@ dataset.ms10kp.num_classes = 10001
 dataset.ms10kp.image_shape = (112,112,3)
 dataset.ms10kp.val_targets = []
 
+dataset.ziyan20190916t3 = edict()
+dataset.ziyan20190916t3.dataset = 'ziyan20190916t3'
+dataset.ziyan20190916t3.dataset_path = '/data/chaizh/ID/ms1m_emore_sany_hik_ziyan_20190916/training_3_best'
+dataset.ziyan20190916t3.num_classes = 104468
+dataset.ziyan20190916t3.image_shape = (112,112,3)
+dataset.ziyan20190916t3.val_targets = []
+
 dataset.covered = edict()
 dataset.covered.dataset = 'covered'
 dataset.covered.dataset_path = '../datasets/covered'
@@ -247,8 +254,8 @@ default.wd = 0.0005
 default.mom = 0.9
 default.per_batch_size = 128
 default.ckpt = 2
-#default.lr_steps = '100000,160000,220000'
-default.lr_steps = '2000,16000,22000'
+default.lr_steps = '100000,160000,220000'
+#default.lr_steps = '2000,16000,22000'
 default.models_root = './models'
 
 

@@ -29,6 +29,7 @@ import fresnet
 import verification
 import flops_counter
 from logger import Logger
+import shutil as sh
 
 
 logger = logging.getLogger()
@@ -36,7 +37,6 @@ logger.setLevel(logging.INFO)
 
 
 args = None
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train face network')
@@ -214,16 +214,19 @@ def train_net(args):
                           (args.network, args.loss, args.dataset, args.id), 'model')
     prefix_dir = os.path.dirname(prefix)
     print('prefix', prefix)
-    assert os.path.exists(
-        prefix_dir) == False, '%s already exists' % (prefix_dir)
+    assert os.path.exists(prefix_dir)==False, '%s already exists' % (prefix_dir)
     sys.stdout = Logger(os.path.join(prefix_dir, 'log_train.txt'))
+    logging.basicConfig(filename = os.path.join(prefix_dir, 'log_train_info.txt'), level = logging.INFO) 
+    sh.copy('config.py', os.path.join(prefix_dir, 'config.px'))
+    sh.copy('train.py', os.path.join(prefix_dir, 'train.px'))
+    sh.copy('data_iter.py', os.path.join(prefix_dir, 'data_iter.px'))
+
     args.ctx_num = len(ctx)
     args.batch_size = args.per_batch_size*args.ctx_num
     args.rescale_threshold = 0
     args.image_channel = config.image_shape[2]
     config.batch_size = args.batch_size
     config.per_batch_size = args.per_batch_size
-
     data_dir = config.dataset_path
     path_imgrec = None
     path_imglist = None
@@ -424,7 +427,7 @@ def train_net(args):
               eval_metric=eval_metrics,
               kvstore=args.kvstore,
               optimizer=opt,
-              #optimizer_params   = optimizer_params,
+              #optimizer_params = optimizer_params,
               initializer=initializer,
               arg_params=arg_params,
               aux_params=aux_params,

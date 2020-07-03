@@ -195,6 +195,17 @@ class FaceImageIter(io.DataIter):
         img = self.RGA(img)
         return img
 
+    def laplace(self, img):
+        h,w,c = img.shape
+        kernel = np.array([[0, -1 ,0],
+                           [-1, 4, -1],
+                           [0, -1, 0]])
+        img = img.asnumpy()
+        diff = cv2.filter2D(img, -1, kernel)
+        img = np.stack([img, diff], 2)
+        img = img.reshape([h, w, c*2])
+        return mx.nd.array(img)
+
     def color_jitter_aug(self, img):
         if self.color_jittering > 1:
             _rd = random.randint(0, 1)
@@ -228,6 +239,18 @@ class FaceImageIter(io.DataIter):
             endw = min(img.shape[1], centerw + half)
             # print(starth, endh, startw, endw, _data.shape)
             img[starth:endh, startw:endw, :] = 128
+        return img
+      
+    def cutoff_center(self, img, cutoff):
+        h, w, _ = img.shape
+        centerh = h // 2
+        centerw = w // 2
+        half = self.cutoff // 2
+        starth = max(0, centerh - half)
+        endh = min(img.shape[0], centerh + half)
+        startw = max(0, centerw - half)
+        endw = min(img.shape[1], centerw + half)
+        img[starth:endh, startw:endw, :] = 128
         return img
       
     def fetch_patch(self, img, min_size, max_size):
@@ -340,10 +363,12 @@ class FaceImageIter(io.DataIter):
                 label, _data = self.next_sample()
                 #if _data.shape[0] != self.data_shape[1]:
                 #    _data = mx.image.resize_short(_data, self.data_shape[1])
+                #_data = mx.image.imresize(_data, w, h)
                 if self.color_jittering > 0:
                     _data = self.color_jitter_aug(_data)
                 if self.cutoff > 0:
                     _data = self.cutoff_patch(_data, self.cutoff)
+                    #_data = self.cutoff_center(_data, self.cutoff)
                 if self.rand_mirror:
                     _data = self.mirror_aug(_data)
                 if self.rand_crop:
@@ -356,6 +381,9 @@ class FaceImageIter(io.DataIter):
                     _data,_ = mx.image.center_crop(_data, (w, h))
                 if hasattr(self, 'min_pat') and hasattr(self, 'max_pat'):
                     _data = self.fetch_patch(_data, self.min_pat, self.max_pat)
+
+                #_data = self.laplace(_data)
+                #self.save_image(_data)
                 data = [_data]
                 try:
                     self.check_valid_image(data)
@@ -409,9 +437,9 @@ class FaceImageIter(io.DataIter):
         import cv2
         fname = 'ximgx/' + str(self.cur) + '.jpg'
         ximg = img.copy()
-        img[:,:,0] = ximg[:,:,2]
-        img[:,:,2] = ximg[:,:,0]
-        cv2.imwrite(fname, img.asnumpy())
+        ximg[:,:,0] = img[:,:,2]
+        ximg[:,:,2] = img[:,:,0]
+        cv2.imwrite(fname, ximg.asnumpy())
 
     def augmentation_transform(self, data):
         """Transforms input data with specified augmentation."""
@@ -449,10 +477,10 @@ class FaceImageIterList(io.DataIter):
 if __name__ == "__main__":
     from config import config, default, generate_config
 
-    generate_config("y2", "anti", "softmax")
+    generate_config("y2", "antilg", "softmax")
     data_shape = (config.image_shape[2], config.image_shape[0], config.image_shape[1])
-    #data_shape = (3, 112, 112)
-    data_shape = (3, 48, 48)
+    data_shape = (3, 112, 112)
+    #data_shape = (6, 48, 48)
 
     data_dir = config.dataset_path
     image_size = config.image_shape[0:2]
@@ -486,5 +514,4 @@ if __name__ == "__main__":
     '''
 
     while True:
-        ipdb.set_trace()
         batchx = train_dataiter.next()

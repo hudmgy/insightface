@@ -73,7 +73,8 @@ def padding_crop(img, faces, landmarks, factor, std_size=None):
         if wh <= 0 or ht <= 0:
             continue
         sz = (wh + ht) / 4 * factor
-        if sz > 20 and cy-sz>0 and cx-sz>0 and cy+sz<h and cx+sz<w:
+        #if sz > 20 and cy-sz>0 and cx-sz>0 and cy+sz<h and cx+sz<w:
+        if sz > 30 and cy-sz>0 and cx-sz>0 and cy+sz<h and cx+sz<w:
             sz, cx, cy = int(sz), int(cx), int(cy)
             crop = img[cy-sz:cy+sz, cx-sz:cx+sz]
             if std_size is not None:
@@ -118,7 +119,8 @@ def align_crop(img, faces, landmarks):
     std_shape = as_shape112x112.copy()
     std_size = list(as_size112x112)
 
-    margin_w, margin_h = 8, 8
+    #margin_w, margin_h = 8, 8
+    margin_w, margin_h = 56, 56 
     std_shape[:,0] += margin_w
     std_shape[:,1] += margin_h
     std_size[0] += 2 * margin_h
@@ -164,7 +166,8 @@ if __name__=='__main__':
     #factor = 1.60
     factor = 1.50
     #std_size = (112, 112)
-    std_size = (144, 144)
+    #std_size = (144, 144)
+    std_size = (320, 320)
     
     img_path = sys.argv[1]
     gpuid = int(sys.argv[2])
@@ -174,19 +177,20 @@ if __name__=='__main__':
     img_list = list_read(img_path)
 
     for ind, fi in enumerate(img_list):
-        crop_file = fi.replace('raw', 'crop128x128')
-        #crop_file = fi.replace('Data', 'crops')
+        crop_file = fi.replace('raw', 'crop224x224')
+        #crop_file = fi.replace('raw', 'crop144x144')
+        #crop_file = fi.replace('raw', 'crop128x128')
         if osp.exists(crop_file): continue
         img = cv2.imread(fi)
         if img is None: continue
 
         faces, landmarks = detect(detector, scales, img, thresh)
-        #crop_imgs = padding_crop(img, faces, landmarks, factor, std_size=std_size)
-        crop_imgs = align_crop(img, faces, landmarks)
+        crop_imgs = padding_crop(img, faces, landmarks, factor, std_size=std_size)
+        #crop_imgs = align_crop(img, faces, landmarks)
         print('found', len(crop_imgs), 'faces')
         for i in range(len(crop_imgs)):
             if i > 0:
-                #crop_fi = osp.splitext(crop_file)[0]+'_%02d.jpg'%i
+                crop_fi = osp.splitext(crop_file)[0]+'_%02d.jpg'%i
                 pass
             else:
                 crop_fi = crop_file

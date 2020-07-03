@@ -124,10 +124,10 @@ def inference_main():
 
 
 def test_main():
+    '''
     results = np.load('results.npy').item()
     res_array = []
     for k, v in results.items():
-        '''
         test_loader = FaceImageIter(
             batch_size=args.test_batch_size,
             data_shape=data_shape,
@@ -135,21 +135,23 @@ def test_main():
             center_crop=True,
             mean=None,)
         evaluate(v, test_loader, k)
-        '''
         res_array.append(v)
     res_array_mean = np.mean(res_array[:5], 0)
-
-    '''
-    p1 = np.load('y2-softmax-anti-002_128.npy')
-    p2 = np.load('y2-softmax-anti-004_111.npy')
-    res_array = np.vstack([p1, p2])
-    res_array_max = res_array.max(0)
     '''
 
+    #p1 = np.load('test_log/r18-softmax-anti-001_115.npy')
+    p1 = np.load('test_log/shuffse-softmax-anti-cutcenter_114.npy')
+    p2 = np.load('test_log/shuffse-softmax-anti-00x1_96.npy')
+    #res_array = np.vstack([p1, p2])
+    #res_array_max = res_array.max(0)
+    res_array_mean = np.mean([p1, p2], 0)
+
+    ipdb.set_trace()
+    path_to_test = os.path.join(args.data_dir, "test.lst")
     test_loader = FaceImageIter(
         batch_size=args.test_batch_size,
         data_shape=data_shape,
-        path_imgrec=k,
+        path_imgrec=path_to_test,
         center_crop=True,
         mean=None,)
     evaluate(res_array_mean, test_loader, 'cascade')

@@ -21,6 +21,7 @@ config.fc7_wd_mult = 1.0
 config.fc7_no_bias = False 
 config.max_steps = 0
 config.data_rand_mirror = True
+#config.data_cutoff = 56
 config.data_cutoff = 20
 #config.fetch_size = [32, 112]
 config.fetch_size = None
@@ -75,7 +76,8 @@ network.y1.net_output = 'GDC'
 network.y2 = edict()
 network.y2.net_name = 'fmobilefacenet'
 network.y2.emb_size = 512 
-network.y2.net_output = 'AGAP'
+#network.y2.net_output = 'AGAP'
+network.y2.net_output = 'GDC'
 network.y2.net_blocks = [2,8,16,4]
 
 network.m1 = edict()
@@ -163,7 +165,22 @@ dataset.anti.dataset = 'anti'
 dataset.anti.dataset_path = '../datasets/anti-spoof'
 dataset.anti.num_classes = 2
 dataset.anti.image_shape = (112,112,3)
+#dataset.anti.image_shape = (112,112,6)
 dataset.anti.val_targets = []
+
+dataset.antift = edict()
+dataset.antift.dataset = 'antift'
+dataset.antift.dataset_path = '../datasets/anti-spoof-ft'
+dataset.antift.num_classes = 2
+dataset.antift.image_shape = (112,112,3)
+dataset.antift.val_targets = []
+
+dataset.antilg = edict()
+dataset.antilg.dataset = 'antilg'
+dataset.antilg.dataset_path = '../datasets/anti-spoof-lg'
+dataset.antilg.num_classes = 2
+dataset.antilg.image_shape = (112,112,3)
+dataset.antilg.val_targets = []
 
 dataset.fqua = edict()
 dataset.fqua.dataset = 'fqua'
